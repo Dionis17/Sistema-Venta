@@ -1,63 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const Producto = require('../models/Producto');
-const authenticateToken = require('../middleware/authMiddleware');
 
-// GET todos los productos
-router.get('/', authenticateToken, async (req, res) => {
-  try {
-    const productos = await Producto.findAll();
-    res.json(productos);
-  } catch (err) {
-    res.status(500).json({ message: 'Error al obtener productos' });
-  }
-});
+const {
+  getProductos,
+  createProducto,
+  updateProducto,
+  deleteProducto
+} = require('../controllers/ProductosController');
 
-// POST crear producto
-router.post('/', authenticateToken, async (req, res) => {
-  const { nombre, precio } = req.body;
-  if (!nombre || !precio) return res.status(400).json({ message: 'Nombre y precio son requeridos' });
+const upload = require('../middlewares/upload'); // Asegúrate de que este archivo existe
 
-  try {
-    const nuevo = await Producto.create({ nombre, precio });
-    res.status(201).json(nuevo);
-  } catch (err) {
-    res.status(500).json({ message: 'Error al crear producto' });
-  }
-});
+// Obtener todos los productos
+router.get('/', getProductos);
 
-// PUT editar producto
-router.put('/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { nombre, precio } = req.body;
+// Crear un nuevo producto con imagen
+router.post('/', upload.single('imagen'), createProducto);
 
-  try {
-    const producto = await Producto.findByPk(id);
-    if (!producto) return res.status(404).json({ message: 'Producto no encontrado' });
+// Actualizar producto por ID con posible nueva imagen
+router.put('/:id', upload.single('imagen'), updateProducto);
 
-    producto.nombre = nombre ?? producto.nombre;
-    producto.precio = precio ?? producto.precio;
-
-    await producto.save();
-    res.json(producto);
-  } catch (err) {
-    res.status(500).json({ message: 'Error al actualizar producto' });
-  }
-});
-
-// DELETE eliminar producto
-router.delete('/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const producto = await Producto.findByPk(id);
-    if (!producto) return res.status(404).json({ message: 'Producto no encontrado' });
-
-    await producto.destroy();
-    res.json({ message: 'Producto eliminado correctamente' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error al eliminar producto' });
-  }
-});
+// Eliminar producto por ID
+router.delete('/:id', deleteProducto);
 
 module.exports = router;

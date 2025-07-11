@@ -1,29 +1,33 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  const navigate = useNavigate(); // Navegador para redirección
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/login', {
+      const res = await fetch('http://localhost:5000/api/auth/login', {  // <-- Ruta corregida aquí
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
         setError(data.message || 'Error al iniciar sesión');
         return;
       }
 
-      const data = await res.json();
       onLogin(data.token);
+      navigate('/'); // Redirige al Home automáticamente
     } catch (err) {
       setError('Error de conexión');
     }
