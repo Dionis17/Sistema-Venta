@@ -5,15 +5,15 @@ function Navbar({ user, onLogout }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    if (onLogout) onLogout(); // Limpia token
-    navigate('/login');       // Redirige
+    if (onLogout) onLogout();
+    navigate('/login');
   };
 
   const fotoPerfil = user?.foto || `https://ui-avatars.com/api/?name=${user?.nombre || 'Usuario'}`;
 
   return (
-    <header className="bg-white shadow px-6 py-4">
-      <div className="flex justify-between items-center">
+    <header className="bg-white shadow px-4 sm:px-6 py-4 w-full">
+      <div className="max-w-7xl mx-auto flex justify-between items-center">
         {/* Título del panel */}
         <h1 className="text-xl font-bold text-gray-800">Panel de Administración</h1>
 

@@ -6,28 +6,28 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const navigate = useNavigate(); // Navegador para redirección
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {  // <-- Ruta corregida aquí
+      const res = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ nombre_usuario: username, contraseña: password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || 'Error al iniciar sesión');
+        setError(data.error || 'Error al iniciar sesión');  // <-- Aquí corregido
         return;
       }
 
       onLogin(data.token);
-      navigate('/'); // Redirige al Home automáticamente
+      navigate('/');
     } catch (err) {
       setError('Error de conexión');
     }

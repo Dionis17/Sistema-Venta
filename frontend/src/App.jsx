@@ -1,14 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Productos from './pages/Productos';
+import Clientes from './pages/clientes'; // ✅ Importar componente Clientes // Nueva página clientes
 import Carrito from './pages/Carrito';
-import Sidebar from './component/Sidebar';
-import Navbar from './component/Navbar';
+import Usuario from './pages/Usuarios';
+import MainLayout from './component/MainLayout';
 
-function App() {
+// --- Contexto de Autenticación ---
+const AuthContext = createContext();
+
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
+function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
 
   useEffect(() => {
@@ -16,78 +24,111 @@ function App() {
     if (storedToken) setToken(storedToken);
   }, []);
 
-  const handleLogin = (receivedToken) => {
-    localStorage.setItem('token', receivedToken);
-    setToken(receivedToken);
+  const login = (newToken) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
   };
 
-  const handleLogout = () => {
+  const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
   };
 
-  return (
-    <Router>
-      <Routes>
-        {/* Rutas públicas */}
-        {!token ? (
-          <>
-            <Route path="/login" element={<Login onLogin={handleLogin} />} />
-            <Route path="*" element={<Navigate to="/login" />} />
-          </>
-        ) : (
-          <>
-            {/* Layout para rutas privadas */}
-            <Route
-              path="/"
-              element={
-                <div className="flex h-screen flex-col">
-                  <Navbar onLogout={handleLogout} />
-                  <div className="flex flex-1 overflow-hidden">
-                    <Sidebar onLogout={handleLogout} />
-                    <main className="flex-1 overflow-auto p-6">
-                      <Home />
-                    </main>
-                  </div>
-                </div>
-              }
-            />
-            <Route
-              path="/productos"
-              element={
-                <div className="flex h-screen flex-col">
-                  <Navbar onLogout={handleLogout} />
-                  <div className="flex flex-1 overflow-hidden">
-                    <Sidebar onLogout={handleLogout} />
-                    <main className="flex-1 overflow-auto p-6">
-                      <Productos />
-                    </main>
-                  </div>
-                </div>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" />} />
+  const value = { token, login, logout };
 
-            <Route
-              path="/Carrito"
-              element={
-                <div className="flex h-screen flex-col">
-                  <Navbar onLogout={handleLogout} />
-                  <div className="flex flex-1 overflow-hidden">
-                    <Sidebar onLogout={handleLogout} />
-                    <main className="flex-1 overflow-auto p-6">
-                      <Carrito />
-                    </main>
-                  </div>
-                </div>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" />} />
-          </>
-          
-        )}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+// --- Componente para proteger rutas privadas ---
+function PrivateRoute({ children }) {
+  const { token } = useAuth();
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
+  );
+}
+
+function AppRoutes() {
+  const { token, logout } = useAuth();
+
+  // Rutas públicas (solo login)
+  if (!token) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login onLogin={token => {
+          localStorage.setItem('token', token);
+        }} />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </Router>
+    );
+  }
+
+  // Rutas privadas
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <PrivateRoute>
+            <MainLayout onLogout={logout}>
+              <Home />
+            </MainLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/productos"
+        element={
+          <PrivateRoute>
+            <MainLayout onLogout={logout}>
+              <Productos />
+            </MainLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/clientes"
+        element={
+          <PrivateRoute>
+            <MainLayout onLogout={logout}>
+              <Clientes />
+            </MainLayout>
+          </PrivateRoute>
+        }
+      />
+        <Route
+        path="/Usuarios"
+        element={
+          <PrivateRoute>
+            <MainLayout onLogout={logout}>
+              <Usuario />
+            </MainLayout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/carrito"
+        element={
+          <PrivateRoute>
+            <MainLayout onLogout={logout}>
+              <Carrito />
+            </MainLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

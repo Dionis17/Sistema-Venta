@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 function Productos() {
   const [productos, setProductos] = useState([]);
   const [form, setForm] = useState({
-    id: null, // Para saber si estamos editando
+    id: null,
     nombre: '',
     precio_compra: '',
     precio_venta: '',
@@ -13,7 +13,7 @@ function Productos() {
   });
 
   const API_URL = 'http://localhost:5000/api/productos';
-  const IMG_URL = 'http://localhost:5000'; // Base para mostrar imágenes
+  const IMG_URL = 'http://localhost:5000';
 
   useEffect(() => {
     getProductos();
@@ -56,19 +56,16 @@ function Productos() {
 
     try {
       if (id) {
-        // Actualizar producto
         await fetch(`${API_URL}/${id}`, {
           method: 'PUT',
           body: formData
         });
       } else {
-        // Crear producto nuevo
         await fetch(API_URL, {
           method: 'POST',
           body: formData
         });
       }
-      // Limpiar formulario y recargar productos
       setForm({ id: null, nombre: '', precio_compra: '', precio_venta: '', stock: '', stock_minimo: '', imagen: null });
       getProductos();
     } catch (err) {
@@ -94,7 +91,7 @@ function Productos() {
       precio_venta: producto.precio_venta,
       stock: producto.stock,
       stock_minimo: producto.stock_minimo,
-      imagen: null, // No cargamos imagen aquí, solo si el usuario cambia
+      imagen: null,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -105,101 +102,116 @@ function Productos() {
 
   return (
     <div className="p-6">
-      {/* Título y total invertido alineados */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Gestión de Inventario</h2>
         <div className="bg-white p-3 rounded shadow border text-right min-w-[220px]">
           <p className="text-gray-600 text-sm">Capital</p>
-          <p className="text-2xl font-bold text-green-700">
+          <p className="text-2xl font-bold text-blue-500">
             ${productos.reduce((total, p) => total + (p.precio_compra * p.stock), 0).toFixed(2)}
           </p>
         </div>
       </div>
+    
 
-      <form onSubmit={handleAgregarOActualizar} className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6" encType="multipart/form-data">
-        <input
-          name="nombre"
-          value={form.nombre}
-          onChange={handleChange}
-          placeholder="Nombre"
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          name="precio_compra"
-          type="number"
-          value={form.precio_compra}
-          onChange={handleChange}
-          placeholder="Precio compra"
-          className="border p-2 rounded"
-          required
-          min="0"
-          step="0.01"
-        />
-        <input
-          name="precio_venta"
-          type="number"
-          value={form.precio_venta}
-          onChange={handleChange}
-          placeholder="Precio venta"
-          className="border p-2 rounded"
-          required
-          min="0"
-          step="0.01"
-        />
-        <input
-          name="stock"
-          type="number"
-          value={form.stock}
-          onChange={handleChange}
-          placeholder="Stock"
-          className="border p-2 rounded"
-          required
-          min="0"
-          step="1"
-        />
-        <input
-          name="stock_minimo"
-          type="number"
-          value={form.stock_minimo}
-          onChange={handleChange}
-          placeholder="Stock mínimo"
-          className="border p-2 rounded"
-          required
-          min="0"
-          step="1"
-        />
-        <input type="file" name="imagen" accept="image/*" onChange={handleChange} className="border p-2 rounded" />
-        <div className="md:col-span-6 flex gap-4">
-          <button
-            type="submit"
-            className="bg-green-600 text-white py-2 rounded hover:bg-green-700 flex-1"
-          >
-            {form.id ? 'Actualizar producto' : 'Agregar producto'}
-          </button>
-          {form.id && (
-            <button
-              type="button"
-              onClick={handleCancelarEdicion}
-              className="bg-gray-400 text-white py-2 rounded hover:bg-gray-500 flex-1"
-            >
-              Cancelar
-            </button>
-          )}
-        </div>
-      </form>
+    <form
+  onSubmit={handleAgregarOActualizar}
+  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 bg-white p-6 rounded-2xl shadow-md"
+>
+  <input
+    name="nombre"
+    value={form.nombre}
+    onChange={handleChange}
+    placeholder="Nombre"
+    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+    required
+  />
+  <input
+    name="precio_compra"
+    type="number"
+    value={form.precio_compra}
+    onChange={handleChange}
+    placeholder="Precio compra"
+    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+    required
+    min="0"
+    step="0.01"
+  />
+  <input
+    name="precio_venta"
+    type="number"
+    value={form.precio_venta}
+    onChange={handleChange}
+    placeholder="Precio venta"
+    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+    required
+    min="0"
+    step="0.01"
+  />
+  <input
+    name="stock"
+    type="number"
+    value={form.stock}
+    onChange={handleChange}
+    placeholder="Stock"
+    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+    required
+    min="0"
+    step="1"
+  />
+  <input
+    name="stock_minimo"
+    type="number"
+    value={form.stock_minimo}
+    onChange={handleChange}
+    placeholder="Stock mínimo"
+    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+    required
+    min="0"
+    step="1"
+  />
+  <input
+    type="file"
+    name="imagen"
+    accept="image/*"
+    onChange={handleChange}
+    className="border p-2 rounded-lg bg-gray-50"
+  />
+
+  {/* Botones en una fila nueva */}
+  <div className="col-span-full flex flex-wrap gap-4 mt-4">
+    <button
+      type="submit"
+      className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg transition"
+    >
+      {form.id ? 'Actualizar producto' : 'Agregar producto'}
+    </button>
+
+    {form.id && (
+      <button
+        type="button"
+        onClick={handleCancelarEdicion}
+        className="bg-gray-400 hover:bg-gray-500 text-white py-2 px-6 rounded-lg transition"
+      >
+        Cancelar
+      </button>
+    )}
+  </div>
+</form>
+
+  
 
       <table className="min-w-full border">
-        <thead>
-          <tr className="bg-gray-100 text-left">
-            <th className="p-2 border">Imagen</th>
-            <th className="p-2 border">Nombre</th>
-            <th className="p-2 border">Compra</th>
-            <th className="p-2 border">Venta</th>
-            <th className="p-2 border">Ganancia</th>
-            <th className="p-2 border">Stock</th>
-            <th className="p-2 border">Mínimo</th>
-            <th className="p-2 border">Acciones</th>
+        <thead className="bg-blue-100 text-blue-900" >
+          
+          <tr className="text-left">
+            <th className="p-3 border border-blue-200 text-left">Imagen</th>
+            <th className="p-3 border border-blue-200 text-left">Nombre</th>
+            <th className="p-3 border border-blue-200 text-left">Compra</th>
+            <th className="p-3 border border-blue-200 text-left">Venta</th>
+            <th className="p-3 border border-blue-200 text-left">Ganancia</th>
+            <th className="p-3 border border-blue-200 text-left">Stock</th>
+            <th className="p-3 border border-blue-200 text-left">Mínimo</th>
+            <th className="p-3 border border-blue-200 text-left">Acciones</th>
           </tr>
         </thead>
         <tbody>

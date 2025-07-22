@@ -1,63 +1,54 @@
+// routes/clientes.js
 const express = require('express');
 const router = express.Router();
 const Cliente = require('../models/Cliente');
-const authenticateToken = require('../middleware/authMiddleware');
 
-// GET todos los clientes
-router.get('/', authenticateToken, async (req, res) => {
+// Listar todos los clientes
+router.get('/', async (req, res) => {
   try {
     const clientes = await Cliente.findAll();
     res.json(clientes);
-  } catch (err) {
-    res.status(500).json({ message: 'Error al obtener clientes' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener clientes' });
   }
 });
 
-// POST crear cliente
-router.post('/', authenticateToken, async (req, res) => {
-  const { nombre, telefono, direccion } = req.body;
-  if (!nombre) return res.status(400).json({ message: 'Nombre es requerido' });
-
+// Crear cliente nuevo
+router.post('/', async (req, res) => {
   try {
-    const nuevo = await Cliente.create({ nombre, telefono, direccion });
-    res.status(201).json(nuevo);
-  } catch (err) {
-    res.status(500).json({ message: 'Error al crear cliente' });
+    const { nombre, telefono, direccion } = req.body;
+    if (!nombre) return res.status(400).json({ error: 'Nombre es obligatorio' });
+    const nuevoCliente = await Cliente.create({ nombre, telefono, direccion });
+    res.status(201).json(nuevoCliente);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al crear cliente' });
   }
 });
 
-// PUT editar cliente
-router.put('/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { nombre, telefono, direccion } = req.body;
-
+// Actualizar cliente
+router.put('/:id', async (req, res) => {
   try {
+    const { id } = req.params;
+    const { nombre, telefono, direccion } = req.body;
     const cliente = await Cliente.findByPk(id);
-    if (!cliente) return res.status(404).json({ message: 'Cliente no encontrado' });
-
-    cliente.nombre = nombre ?? cliente.nombre;
-    cliente.telefono = telefono ?? cliente.telefono;
-    cliente.direccion = direccion ?? cliente.direccion;
-
-    await cliente.save();
+    if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
+    await cliente.update({ nombre, telefono, direccion });
     res.json(cliente);
-  } catch (err) {
-    res.status(500).json({ message: 'Error al actualizar cliente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al actualizar cliente' });
   }
 });
 
-// DELETE eliminar cliente
-router.delete('/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-
+// Eliminar cliente
+router.delete('/:id', async (req, res) => {
   try {
+    const { id } = req.params;
     const cliente = await Cliente.findByPk(id);
-    if (!cliente) return res.status(404).json({ message: 'Cliente no encontrado' });
-
+    if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
     await cliente.destroy();
-    res.json({ message: 'Cliente eliminado correctamente' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error al eliminar cliente' });
+    res.json({ message: 'Cliente eliminado' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar cliente' });
   }
 });
 

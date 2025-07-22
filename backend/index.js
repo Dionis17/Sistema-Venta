@@ -9,12 +9,15 @@ const sequelize = require('./config/database');
 
 // Modelos (importarlos para registrar en Sequelize)
 const Producto = require('./models/Producto');
-const Cliente = require('./models/Cliente'); // si lo tienes
+const Cliente = require('./models/Cliente');
+const Usuario = require('./models/gesUsuario'); // ✅ NUEVO MODELO
 
 // Rutas
 const authRoutes = require('./routes/auth');
 const productosRoutes = require('./routes/productos');
 const clientesRoutes = require('./routes/clientes');
+const ventasRoutes = require('./routes/ventas');
+const usuariosRoutes = require('./routes/usuarios');
 
 // Inicializar app
 const app = express();
@@ -37,8 +40,9 @@ app.use('/uploads', express.static(uploadsDir));
 app.use('/api/auth', authRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/clientes', clientesRoutes);
-
-// Ruta de prueba: eliminar tabla productos (solo desarrollo)
+app.use('/api/ventas', ventasRoutes);
+app.use('/api/usuarios', usuariosRoutes);
+// Ruta opcional para eliminar tabla productos (solo para pruebas o desarrollo)
 app.delete('/api/delete-tabla-productos', async (req, res) => {
   try {
     await sequelize.query('DROP TABLE IF EXISTS productos;');
@@ -49,7 +53,7 @@ app.delete('/api/delete-tabla-productos', async (req, res) => {
   }
 });
 
-// Iniciar servidor
+// Sincronizar la base de datos y levantar el servidor
 sequelize.sync({ alter: true })
   .then(() => {
     console.log('✔️ Base de datos sincronizada');

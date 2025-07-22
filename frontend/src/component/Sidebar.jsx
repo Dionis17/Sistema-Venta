@@ -16,7 +16,7 @@ const menuItems = [
   { name: 'Ventas', icon: AiOutlineShoppingCart, path: '/Carrito' },
   { name: 'Productos', icon: AiOutlineAppstore, path: '/productos' },
   { name: 'Clientes', icon: AiOutlineUser, path: '/clientes' },
-  { name: 'Usuarios', icon: AiOutlineTeam, path: '/usuarios' },
+  { name: 'Usuarios', icon: AiOutlineTeam, path: '/Usuarios' },
   { name: 'Proveedores', icon: AiOutlineTruck, path: '/proveedores' },
   { name: 'Cuadre de caja', icon: AiOutlineFileDone, path: '/cuadre-formulario' },
   { name: 'Cuadres guardados', icon: AiOutlineFolderOpen, path: '/cuadres-guardados' },
