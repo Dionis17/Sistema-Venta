@@ -1,14 +1,13 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
+const Proveedor = require("./proveedor");
 
-const Producto = sequelize.define('Producto', {
+const Producto = sequelize.define("Producto", {
   nombre: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
-    validate: {
-      notEmpty: true
-    }
+    validate: { notEmpty: true }
+    // Ojo: quitamos unique: true aquí para usar índice compuesto abajo
   },
   precio_compra: {
     type: DataTypes.DECIMAL(10, 2),
@@ -19,6 +18,12 @@ const Producto = sequelize.define('Producto', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
     defaultValue: 0.00,
+    validate: { min: 0 }
+  },
+  precio_especial: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: null,
     validate: { min: 0 }
   },
   stock: {
@@ -33,12 +38,6 @@ const Producto = sequelize.define('Producto', {
     defaultValue: 5,
     validate: { min: 0 }
   },
-  proveedor: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    defaultValue: 'Desconocido',
-    validate: { notEmpty: true }
-  },
   imagen_url: {
     type: DataTypes.STRING,
     allowNull: true
@@ -47,6 +46,16 @@ const Producto = sequelize.define('Producto', {
     type: DataTypes.DATEONLY,
     allowNull: false,
     defaultValue: DataTypes.NOW
+  },
+  proveedor_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'proveedores',
+      key: 'id',
+    },
+    onUpdate: 'CASCADE',
+    onDelete: 'NO ACTION',
   },
   ganancia_unitaria: {
     type: DataTypes.VIRTUAL,
@@ -57,15 +66,25 @@ const Producto = sequelize.define('Producto', {
     }
   }
 }, {
-  tableName: 'productos',
-  timestamps: true
+  tableName: "productos",
+  timestamps: true,
+
+  indexes: [
+    {
+      unique: true,
+      fields: ['nombre', 'proveedor_id']  // Índice único compuesto
+    }
+  ]
 });
 
-// Normalizar nombre en minúscula
+// Asociaciones
+Producto.belongsTo(Proveedor, { foreignKey: 'proveedor_id', as: 'proveedor' });
+Proveedor.hasMany(Producto, { foreignKey: 'proveedor_id', as: 'productos' });
+
+// Normalizar nombre antes de guardar
 Producto.beforeCreate((producto) => {
   producto.nombre = producto.nombre.trim().toLowerCase();
 });
-
 Producto.beforeUpdate((producto) => {
   producto.nombre = producto.nombre.trim().toLowerCase();
 });

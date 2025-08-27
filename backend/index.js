@@ -1,66 +1,79 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+require("dotenv").config();
 
-// Conexión con la base de datos
-const sequelize = require('./config/database');
+const sequelize = require("./config/database");
 
-// Modelos (importarlos para registrar en Sequelize)
-const Producto = require('./models/Producto');
-const Cliente = require('./models/Cliente');
-const Usuario = require('./models/gesUsuario'); // ✅ NUEVO MODELO
+const Producto = require("./models/Producto");
+const Cliente = require("./models/Cliente");
+const Usuario = require("./models/gesUsuario");
+const Credito = require("./models/mcreditos"); // Ajusta nombre archivo si es necesario
+const Venta = require("./models/ventas");
+const DetalleVenta = require("./models/detallesDeVentas");
+const proveedorRoutes = require("./routes/proveedor");
 
-// Rutas
-const authRoutes = require('./routes/auth');
-const productosRoutes = require('./routes/productos');
-const clientesRoutes = require('./routes/clientes');
-const ventasRoutes = require('./routes/ventas');
-const usuariosRoutes = require('./routes/usuarios');
+// Importa rutas
+const authRoutes = require("./routes/auth");
+const productosRoutes = require("./routes/productos");
+const clientesRoutes = require("./routes/clientes");
+const ventasRoutes = require("./routes/venta");
+const usuariosRoutes = require("./routes/usuarios");
+const creditosRoutes = require("./routes/creditos");
+const cuentaRoutes = require("./routes/cuenta");
+const prodAgrupadosRoutes = require("./routes/prodAgrupados");
+// Define relaciones (ajusta según tus modelos)
+Cliente.hasMany(Credito, { foreignKey: "cliente_id", as: "creditos" });
 
-// Inicializar app
-const app = express();
-const PORT = process.env.PORT || 5000;
+Venta.hasMany(DetalleVenta, { foreignKey: "ventaId" });
+DetalleVenta.belongsTo(Venta, { foreignKey: "ventaId" });
 
-// Asegurarse que la carpeta uploads exista
-const uploadsDir = path.join(__dirname, 'uploads');
+// Crear carpeta uploads si no existe
+const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
+const app = express();
+const PORT = process.env.PORT || 5000;
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
-
-// Servir archivos estáticos para imágenes subidas
-app.use('/uploads', express.static(uploadsDir));
+app.use("/uploads", express.static(uploadsDir));
 
 // Rutas API
-app.use('/api/auth', authRoutes);
-app.use('/api/productos', productosRoutes);
-app.use('/api/clientes', clientesRoutes);
-app.use('/api/ventas', ventasRoutes);
-app.use('/api/usuarios', usuariosRoutes);
-// Ruta opcional para eliminar tabla productos (solo para pruebas o desarrollo)
-app.delete('/api/delete-tabla-productos', async (req, res) => {
+app.use("/api/auth", authRoutes);
+app.use("/api/productos", productosRoutes);
+app.use("/api/clientes", clientesRoutes);
+app.use("/api/ventas", ventasRoutes); // <-- CORRECTO: ventasRoutes
+app.use("/api/usuarios", usuariosRoutes);
+app.use("/api/creditos", creditosRoutes);
+app.use("/api/cuentas", cuentaRoutes);
+app.use("/api/proveedores", proveedorRoutes);
+app.use("/api/productos", prodAgrupadosRoutes);
+
+// Ruta para eliminar tabla productos (opcional, solo para pruebas)
+app.delete("/api/delete-tabla-productos", async (req, res) => {
   try {
-    await sequelize.query('DROP TABLE IF EXISTS productos;');
-    res.status(200).send('✅ Tabla productos eliminada correctamente');
+    await sequelize.query("DROP TABLE IF EXISTS productos;");
+    res.status(200).send("✅ Tabla productos eliminada correctamente");
   } catch (err) {
-    console.error('❌ Error al eliminar tabla:', err);
-    res.status(500).send('Error al ejecutar DROP TABLE');
+    console.error("❌ Error al eliminar tabla:", err);
+    res.status(500).send("Error al ejecutar DROP TABLE");
   }
 });
 
-// Sincronizar la base de datos y levantar el servidor
-sequelize.sync({ alter: true })
+// Sincronizar la base de datos y levantar servidor
+sequelize
+  .sync({ alter: true }) // usa alter: true para migraciones automáticas, o force: true para borrar todo
   .then(() => {
-    console.log('✔️ Base de datos sincronizada');
-    app.listen(PORT, () => {
-      console.log(`🌐 Servidor corriendo en http://localhost:${PORT}`);
+    console.log("✔️ Base de datos sincronizada");
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🌐 Servidor corriendo en http://192.168.100.11:${PORT}`);
     });
   })
-  .catch(err => {
-    console.error('❌ Error al sincronizar la base de datos:', err);
+  .catch((err) => {
+    console.error("❌ Error al sincronizar la base de datos:", err);
   });

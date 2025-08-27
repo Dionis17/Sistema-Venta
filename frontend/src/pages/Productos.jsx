@@ -1,264 +1,327 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
 
-function Productos() {
+const API_PRODUCTOS = "http://localhost:5000/api/productos";
+const API_PROVEEDORES = "http://localhost:5000/api/proveedores";
+const IMG_URL = "http://localhost:5000/uploads/";
+
+export default function Productos() {
   const [productos, setProductos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [mensaje, setMensaje] = useState("");
   const [form, setForm] = useState({
     id: null,
-    nombre: '',
-    precio_compra: '',
-    precio_venta: '',
-    stock: '',
-    stock_minimo: '',
-    imagen: null
+    nombre: "",
+    precio_compra: "",
+    precio_venta: "",
+    precio_especial: "",
+    stock: "",
+    stock_minimo: "",
+    proveedor_id: "",
+    imagen: null,
   });
-
-  const API_URL = 'http://localhost:5000/api/productos';
-  const IMG_URL = 'http://localhost:5000';
+  const [productoSeleccionadoId, setProductoSeleccionadoId] = useState(null);
 
   useEffect(() => {
-    getProductos();
+    cargarProductos();
+    cargarProveedores();
   }, []);
 
-  const getProductos = async () => {
+  async function cargarProductos() {
     try {
-      const res = await fetch(API_URL);
+      const res = await fetch(API_PRODUCTOS);
       const data = await res.json();
-      setProductos(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error al obtener productos:', err);
+      setProductos(data.productos || data);
+    } catch (error) {
+      console.error("Error cargando productos:", error);
     }
-  };
+  }
+
+  async function cargarProveedores() {
+    try {
+      const res = await fetch(API_PROVEEDORES);
+      const data = await res.json();
+      setProveedores(data.proveedores || data);
+    } catch (error) {
+      console.error("Error cargando proveedores:", error);
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
-    setForm({
-      ...form,
-      [name]: name === 'imagen' ? files[0] : value
-    });
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === "imagen" ? files[0] : value,
+    }));
   };
 
-  const handleAgregarOActualizar = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const { id, nombre, precio_compra, precio_venta, stock, stock_minimo, imagen } = form;
-
-    if (!nombre || isNaN(precio_compra) || isNaN(precio_venta) || isNaN(stock) || isNaN(stock_minimo)) {
-      alert('Por favor, completa todos los campos correctamente.');
-      return;
-    }
 
     const formData = new FormData();
-    formData.append('nombre', nombre);
-    formData.append('precio_compra', precio_compra);
-    formData.append('precio_venta', precio_venta);
-    formData.append('stock', stock);
-    formData.append('stock_minimo', stock_minimo);
-    if (imagen && imagen instanceof File) formData.append('imagen', imagen);
+    formData.append("nombre", form.nombre);
+    formData.append("precio_compra", form.precio_compra);
+    formData.append("precio_venta", form.precio_venta);
+    formData.append("precio_especial", form.precio_especial || "");
+    formData.append("stock", form.stock);
+    formData.append("stock_minimo", form.stock_minimo);
+    formData.append("proveedor_id", form.proveedor_id);
+    if (form.imagen) formData.append("imagen", form.imagen);
+
+    const url = form.id ? `${API_PRODUCTOS}/${form.id}` : API_PRODUCTOS;
+    const method = form.id ? "PUT" : "POST";
 
     try {
-      if (id) {
-        await fetch(`${API_URL}/${id}`, {
-          method: 'PUT',
-          body: formData
-        });
+      const res = await fetch(url, {
+        method,
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        setMensaje("Error: " + data.error);
       } else {
-        await fetch(API_URL, {
-          method: 'POST',
-          body: formData
+        setMensaje(form.id ? "Producto actualizado" : "Producto creado");
+        setForm({
+          id: null,
+          nombre: "",
+          precio_compra: "",
+          precio_venta: "",
+          precio_especial: "",
+          stock: "",
+          stock_minimo: "",
+          proveedor_id: "",
+          imagen: null,
         });
+        setProductoSeleccionadoId(null);
+        cargarProductos();
       }
-      setForm({ id: null, nombre: '', precio_compra: '', precio_venta: '', stock: '', stock_minimo: '', imagen: null });
-      getProductos();
-    } catch (err) {
-      console.error('Error al guardar producto:', err);
-    }
-  };
-
-  const handleEliminar = async (id) => {
-    if (!window.confirm('¿Seguro que deseas eliminar este producto?')) return;
-    try {
-      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-      getProductos();
-    } catch (err) {
-      console.error('Error al eliminar producto:', err);
+    } catch (error) {
+      setMensaje("Error al guardar producto");
+      console.error(error);
     }
   };
 
   const handleEditar = (producto) => {
     setForm({
       id: producto.id,
-      nombre: producto.nombre,
-      precio_compra: producto.precio_compra,
-      precio_venta: producto.precio_venta,
-      stock: producto.stock,
-      stock_minimo: producto.stock_minimo,
+      nombre: producto.nombre || "",
+      precio_compra: producto.precio_compra || "",
+      precio_venta: producto.precio_venta || "",
+      precio_especial: producto.precio_especial || "",
+      stock: producto.stock || "",
+      stock_minimo: producto.stock_minimo || "",
+      proveedor_id: producto.proveedor_id || "",
       imagen: null,
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleCancelarEdicion = () => {
-    setForm({ id: null, nombre: '', precio_compra: '', precio_venta: '', stock: '', stock_minimo: '', imagen: null });
+    setProductoSeleccionadoId(producto.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Gestión de Inventario</h2>
-        <div className="bg-white p-3 rounded shadow border text-right min-w-[220px]">
-          <p className="text-gray-600 text-sm">Capital</p>
-          <p className="text-2xl font-bold text-blue-500">
-            ${productos.reduce((total, p) => total + (p.precio_compra * p.stock), 0).toFixed(2)}
-          </p>
-        </div>
-      </div>
-    
+    <div className="p-6 max-w-5xl mx-auto">
+      <h2 className="text-2xl font-bold mb-4">Gestión de Productos</h2>
 
-    <form
-  onSubmit={handleAgregarOActualizar}
-  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 bg-white p-6 rounded-2xl shadow-md"
->
-  <input
-    name="nombre"
-    value={form.nombre}
-    onChange={handleChange}
-    placeholder="Nombre"
-    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-    required
-  />
-  <input
-    name="precio_compra"
-    type="number"
-    value={form.precio_compra}
-    onChange={handleChange}
-    placeholder="Precio compra"
-    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-    required
-    min="0"
-    step="0.01"
-  />
-  <input
-    name="precio_venta"
-    type="number"
-    value={form.precio_venta}
-    onChange={handleChange}
-    placeholder="Precio venta"
-    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-    required
-    min="0"
-    step="0.01"
-  />
-  <input
-    name="stock"
-    type="number"
-    value={form.stock}
-    onChange={handleChange}
-    placeholder="Stock"
-    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-    required
-    min="0"
-    step="1"
-  />
-  <input
-    name="stock_minimo"
-    type="number"
-    value={form.stock_minimo}
-    onChange={handleChange}
-    placeholder="Stock mínimo"
-    className="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-    required
-    min="0"
-    step="1"
-  />
-  <input
-    type="file"
-    name="imagen"
-    accept="image/*"
-    onChange={handleChange}
-    className="border p-2 rounded-lg bg-gray-50"
-  />
-
-  {/* Botones en una fila nueva */}
-  <div className="col-span-full flex flex-wrap gap-4 mt-4">
-    <button
-      type="submit"
-      className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg transition"
-    >
-      {form.id ? 'Actualizar producto' : 'Agregar producto'}
-    </button>
-
-    {form.id && (
-      <button
-        type="button"
-        onClick={handleCancelarEdicion}
-        className="bg-gray-400 hover:bg-gray-500 text-white py-2 px-6 rounded-lg transition"
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3 bg-white p-6 rounded shadow"
       >
-        Cancelar
-      </button>
-    )}
-  </div>
-</form>
-
-  
-
-      <table className="min-w-full border">
-        <thead className="bg-blue-100 text-blue-900" >
-          
-          <tr className="text-left">
-            <th className="p-3 border border-blue-200 text-left">Imagen</th>
-            <th className="p-3 border border-blue-200 text-left">Nombre</th>
-            <th className="p-3 border border-blue-200 text-left">Compra</th>
-            <th className="p-3 border border-blue-200 text-left">Venta</th>
-            <th className="p-3 border border-blue-200 text-left">Ganancia</th>
-            <th className="p-3 border border-blue-200 text-left">Stock</th>
-            <th className="p-3 border border-blue-200 text-left">Mínimo</th>
-            <th className="p-3 border border-blue-200 text-left">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {productos.map((p) => (
-            <tr key={p.id} className="hover:bg-gray-50">
-              <td className="p-2 border">
-                {p.imagen_url ? (
-                  <img src={`${IMG_URL}${p.imagen_url}`} alt="producto" className="w-16 h-16 object-cover rounded" />
-                ) : (
-                  <span className="text-gray-400 italic">Sin imagen</span>
-                )}
-              </td>
-              <td className="p-2 border">{p.nombre}</td>
-              <td className="p-2 border">${p.precio_compra}</td>
-              <td className="p-2 border">${p.precio_venta}</td>
-              <td className="p-2 border text-green-700 font-semibold">
-                ${parseFloat(p.precio_venta - p.precio_compra).toFixed(2)}
-              </td>
-              <td className="p-2 border">{p.stock}</td>
-              <td className="p-2 border">{p.stock_minimo}</td>
-              <td className="p-2 border flex gap-2">
-                <button
-                  onClick={() => handleEditar(p)}
-                  className="text-blue-600 hover:underline"
-                >
-                  Editar
-                </button>
-                <button
-                  onClick={() => handleEliminar(p.id)}
-                  className="text-red-600 hover:underline"
-                >
-                  Eliminar
-                </button>
-              </td>
-            </tr>
+        <input
+          type="text"
+          name="nombre"
+          placeholder="Nombre"
+          value={form.nombre}
+          onChange={handleChange}
+          required
+          className="border p-2 rounded"
+        />
+        <input
+          type="number"
+          name="precio_compra"
+          placeholder="Precio compra"
+          value={form.precio_compra}
+          onChange={handleChange}
+          min="0"
+          step="0.01"
+          className="border p-2 rounded"
+          required
+        />
+        <input
+          type="number"
+          name="precio_venta"
+          placeholder="Precio venta"
+          value={form.precio_venta}
+          onChange={handleChange}
+          min="0"
+          step="0.01"
+          className="border p-2 rounded"
+          required
+        />
+        <input
+          type="number"
+          name="precio_especial"
+          placeholder="Precio especial"
+          value={form.precio_especial}
+          onChange={handleChange}
+          min="0"
+          step="0.01"
+          className="border p-2 rounded"
+        />
+        <input
+          type="number"
+          name="stock"
+          placeholder="Stock"
+          value={form.stock}
+          onChange={handleChange}
+          min="0"
+          className="border p-2 rounded"
+          required
+        />
+        <input
+          type="number"
+          name="stock_minimo"
+          placeholder="Stock mínimo"
+          value={form.stock_minimo}
+          onChange={handleChange}
+          min="0"
+          className="border p-2 rounded"
+          required
+        />
+        <select
+          name="proveedor_id"
+          value={form.proveedor_id}
+          onChange={handleChange}
+          className="border p-2 rounded md:col-span-2"
+          required
+        >
+          <option value="">Seleccionar proveedor</option>
+          {proveedores.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nombre}
+            </option>
           ))}
-          {productos.length === 0 && (
-            <tr>
-              <td colSpan="8" className="text-center p-4 text-gray-500">
-                No hay productos registrados
-              </td>
-            </tr>
+        </select>
+
+        <input
+          type="file"
+          name="imagen"
+          accept="image/*"
+          onChange={handleChange}
+          className="border p-2 rounded md:col-span-2"
+        />
+
+        <div className="md:col-span-4 flex justify-end gap-4 mt-4">
+          {form.id && (
+            <button
+              type="button"
+              onClick={() => {
+                setForm({
+                  id: null,
+                  nombre: "",
+                  precio_compra: "",
+                  precio_venta: "",
+                  precio_especial: "",
+                  stock: "",
+                  stock_minimo: "",
+                  proveedor_id: "",
+                  imagen: null,
+                });
+                setProductoSeleccionadoId(null);
+              }}
+              className="bg-gray-400 hover:bg-gray-500 text-white py-2 px-6 rounded transition"
+            >
+              Cancelar
+            </button>
           )}
-        </tbody>
-      </table>
+          <button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded transition"
+          >
+            {form.id ? "Actualizar" : "Agregar"}
+          </button>
+        </div>
+      </form>
+
+      {mensaje && (
+        <p
+          className={`mb-4 ${
+            mensaje.toLowerCase().includes("error")
+              ? "text-red-600"
+              : "text-green-600"
+          }`}
+        >
+          {mensaje}
+        </p>
+      )}
+
+      <div className="max-h-[350px] overflow-y-auto border border-gray-300 rounded">
+        <table className="min-w-full border border-gray-300 rounded overflow-hidden">
+          <thead className="bg-blue-100 text-blue-900">
+            <tr>
+              <th className="p-3 border text-left">Imagen</th>
+              <th className="p-3 border text-left">Nombre</th>
+              <th className="p-3 border text-left">Precio compra</th>
+              <th className="p-3 border text-left">Precio venta</th>
+              <th className="p-3 border text-left">Precio especial</th>
+              <th className="p-3 border text-left">Stock</th>
+              <th className="p-3 border text-left">Stock mínimo</th>
+              <th className="p-3 border text-left">Proveedor</th>
+              <th className="p-3 border text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {productos.length === 0 ? (
+              <tr>
+                <td colSpan="9" className="p-4 text-center text-gray-500 italic">
+                  No hay productos
+                </td>
+              </tr>
+            ) : (
+              productos.map((p) => {
+                const isSelected = productoSeleccionadoId === p.id;
+                return (
+                  <tr
+                    key={p.id}
+                    onClick={() => handleEditar(p)}
+                    className={`cursor-pointer ${
+                      isSelected ? "bg-blue-200" : "hover:bg-blue-50"
+                    }`}
+                  >
+                    <td className="p-2 border">
+                      {p.imagen_url ? (
+                        <img
+                          src={`${IMG_URL}${p.imagen_url.replace("/uploads/", "")}`}
+                          alt={p.nombre}
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      ) : (
+                        <span className="text-gray-400 italic">Sin imagen</span>
+                      )}
+                    </td>
+                    <td className="p-3 border">{p.nombre}</td>
+                    <td className="p-3 border">{p.precio_compra}</td>
+                    <td className="p-3 border">{p.precio_venta}</td>
+                    <td className="p-3 border">{p.precio_especial || "-"}</td>
+                    <td className="p-3 border">{p.stock}</td>
+                    <td className="p-3 border">{p.stock_minimo}</td>
+                    <td className="p-3 border">{p.proveedor?.nombre || "Sin proveedor"}</td>
+                    <td className="p-3 border text-right space-x-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Aquí puedes agregar funcionalidad de borrar si quieres
+                        }}
+                        className="text-indigo-600 hover:underline"
+                      >
+                        Editar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
-
-export default Productos;

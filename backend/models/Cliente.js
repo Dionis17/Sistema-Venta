@@ -13,17 +13,13 @@ const Cliente = sequelize.define('Cliente', {
   },
   telefono: {
     type: DataTypes.STRING,
-    allowNull: true,
   },
-  direccion: {
+  email: {
     type: DataTypes.STRING,
-    allowNull: true,
   },
-  credito: {
-    type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: false,
-  },
+}, {
+  tableName: 'Clientes',
+  timestamps: false,
 });
 
 module.exports = Cliente;

@@ -1,35 +1,38 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Login({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre_usuario: username, contraseña: password }),
+      const res = await fetch("http://192.168.100.11:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre_usuario: username,
+          contraseña: password,
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Error al iniciar sesión');  // <-- Aquí corregido
+        setError(data.error || "Error al iniciar sesión"); // <-- Aquí corregido
         return;
       }
 
       onLogin(data.token);
-      navigate('/');
+      navigate("/");
     } catch (err) {
-      setError('Error de conexión');
+      setError("Error de conexión");
     }
   };
 

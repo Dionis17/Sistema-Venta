@@ -1,22 +1,28 @@
 const Producto = require('../models/Producto');
 const path = require('path');
 const fs = require('fs');
+const { Op } = require('sequelize');
 
 // Validación de campos
-const validarProducto = ({ nombre, precio_compra, precio_venta, stock, stock_minimo }) => {
+const validarProducto = ({ nombre, precio_compra, precio_venta, precio_especial, stock, stock_minimo, proveedor_id }) => {
   return (
     typeof nombre === 'string' && nombre.trim() !== '' &&
     !isNaN(precio_compra) && Number(precio_compra) >= 0 &&
     !isNaN(precio_venta) && Number(precio_venta) >= 0 &&
+    (precio_especial === undefined || precio_especial === null || (!isNaN(precio_especial) && Number(precio_especial) >= 0)) &&
     !isNaN(stock) && Number(stock) >= 0 &&
-    !isNaN(stock_minimo) && Number(stock_minimo) >= 0
+    !isNaN(stock_minimo) && Number(stock_minimo) >= 0 &&
+    (proveedor_id === null || !isNaN(proveedor_id))
   );
 };
 
 // Obtener todos los productos
 const getProductos = async (req, res) => {
   try {
-    const productos = await Producto.findAll({ order: [['id', 'ASC']] });
+    const productos = await Producto.findAll({
+      order: [['id', 'ASC']],
+      include: [{ association: 'proveedor', attributes: ['id', 'nombre'] }]
+    });
     res.status(200).json(productos);
   } catch (err) {
     console.error('Error al obtener productos:', err);
@@ -26,13 +32,37 @@ const getProductos = async (req, res) => {
 
 // Crear un producto
 const createProducto = async (req, res) => {
-  const { nombre, precio_compra, precio_venta, stock, stock_minimo } = req.body;
+  let {
+    nombre,
+    precio_compra,
+    precio_venta,
+    precio_especial,
+    stock,
+    stock_minimo,
+    proveedor_id
+  } = req.body;
 
-  if (!validarProducto({ nombre, precio_compra, precio_venta, stock, stock_minimo })) {
+  if (!validarProducto({ nombre, precio_compra, precio_venta, precio_especial, stock, stock_minimo, proveedor_id })) {
     return res.status(400).json({ error: 'Datos inválidos. Asegúrese de completar todos los campos correctamente.' });
   }
 
+  nombre = nombre.trim().toLowerCase();
+
   try {
+    // Preparar condición para buscar duplicados
+    const whereCondition = { nombre };
+    if (proveedor_id !== null && proveedor_id !== undefined) {
+      whereCondition.proveedor_id = proveedor_id;
+    } else {
+      whereCondition.proveedor_id = null;
+    }
+
+    // Validar que no se repita dentro del mismo proveedor
+    const existe = await Producto.findOne({ where: whereCondition });
+    if (existe) {
+      return res.status(400).json({ error: 'Este proveedor ya tiene un producto con ese nombre.' });
+    }
+
     let imagen_url = null;
     if (req.file) {
       imagen_url = `/uploads/${req.file.filename}`;
@@ -42,8 +72,10 @@ const createProducto = async (req, res) => {
       nombre,
       precio_compra: Number(precio_compra),
       precio_venta: Number(precio_venta),
+      precio_especial: precio_especial !== undefined && precio_especial !== null && precio_especial !== '' ? Number(precio_especial) : null,
       stock: Number(stock),
       stock_minimo: Number(stock_minimo),
+      proveedor_id: proveedor_id ? Number(proveedor_id) : null,
       imagen_url
     });
 
@@ -57,17 +89,41 @@ const createProducto = async (req, res) => {
 // Actualizar un producto
 const updateProducto = async (req, res) => {
   const { id } = req.params;
-  const { nombre, precio_compra, precio_venta, stock, stock_minimo } = req.body;
+  let {
+    nombre,
+    precio_compra,
+    precio_venta,
+    precio_especial,
+    stock,
+    stock_minimo,
+    proveedor_id
+  } = req.body;
 
-  if (!validarProducto({ nombre, precio_compra, precio_venta, stock, stock_minimo })) {
+  if (!validarProducto({ nombre, precio_compra, precio_venta, precio_especial, stock, stock_minimo, proveedor_id })) {
     return res.status(400).json({ error: 'Datos inválidos. Verifique los campos.' });
   }
+
+  nombre = nombre.trim().toLowerCase();
 
   try {
     const producto = await Producto.findByPk(id);
     if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    // Si hay nueva imagen, eliminar la antigua
+    // Preparar condición para buscar duplicados (excluyendo el producto actual)
+    const whereCondition = { nombre, id: { [Op.ne]: id } };
+    if (proveedor_id !== null && proveedor_id !== undefined) {
+      whereCondition.proveedor_id = proveedor_id;
+    } else {
+      whereCondition.proveedor_id = null;
+    }
+
+    // Validar que no se repita dentro del mismo proveedor
+    const existe = await Producto.findOne({ where: whereCondition });
+    if (existe) {
+      return res.status(400).json({ error: 'Este proveedor ya tiene un producto con ese nombre.' });
+    }
+
+    // Manejo de imagen si se reemplaza
     if (req.file) {
       if (producto.imagen_url) {
         const rutaAntigua = path.join(__dirname, '..', producto.imagen_url);
@@ -80,8 +136,10 @@ const updateProducto = async (req, res) => {
       nombre,
       precio_compra: Number(precio_compra),
       precio_venta: Number(precio_venta),
+      precio_especial: precio_especial !== undefined && precio_especial !== null && precio_especial !== '' ? Number(precio_especial) : null,
       stock: Number(stock),
       stock_minimo: Number(stock_minimo),
+      proveedor_id: proveedor_id ? Number(proveedor_id) : null,
       imagen_url: producto.imagen_url
     });
 
@@ -100,7 +158,6 @@ const deleteProducto = async (req, res) => {
     const producto = await Producto.findByPk(id);
     if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    // Eliminar la imagen asociada si existe
     if (producto.imagen_url) {
       const ruta = path.join(__dirname, '..', producto.imagen_url);
       if (fs.existsSync(ruta)) fs.unlinkSync(ruta);
