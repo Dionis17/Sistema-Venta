@@ -1,10 +1,11 @@
-// routes/venta.js
 const express = require("express");
-const router = express.Router();
-const { crearVenta, obtenerVentas, anularVenta } = require("../controllers/ventaController");
+const router = express.Router(); // ⬅️ Esto faltaba
+const ventaController = require("../controllers/ventaController");
 
-router.post("/", crearVenta);
-router.get("/", obtenerVentas);
-router.post("/anular/:id", anularVenta); // <--- agregar esta línea
+// Rutas
+router.post("/", ventaController.crearVenta);
+router.get("/", ventaController.obtenerVentas);
+router.post("/anular/:id", ventaController.anularVenta);
+router.get("/pendientes", ventaController.obtenerVentasPendientes);
 
 module.exports = router;

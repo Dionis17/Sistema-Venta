@@ -13,6 +13,8 @@ const Credito = require("./models/mcreditos"); // Ajusta nombre archivo si es ne
 const Venta = require("./models/ventas");
 const DetalleVenta = require("./models/detallesDeVentas");
 const proveedorRoutes = require("./routes/proveedor");
+const Cuadres = require ("./models/cuadres");
+const VentasPendientes = require ("./models/ventasPendiente");
 
 // Importa rutas
 const authRoutes = require("./routes/auth");
@@ -23,6 +25,7 @@ const usuariosRoutes = require("./routes/usuarios");
 const creditosRoutes = require("./routes/creditos");
 const cuentaRoutes = require("./routes/cuenta");
 const prodAgrupadosRoutes = require("./routes/prodAgrupados");
+const cuadreRoutes = require ("./routes/cuadre");
 // Define relaciones (ajusta según tus modelos)
 Cliente.hasMany(Credito, { foreignKey: "cliente_id", as: "creditos" });
 
@@ -53,6 +56,7 @@ app.use("/api/creditos", creditosRoutes);
 app.use("/api/cuentas", cuentaRoutes);
 app.use("/api/proveedores", proveedorRoutes);
 app.use("/api/productos", prodAgrupadosRoutes);
+app.use("/api/cuadres",cuadreRoutes)
 
 // Ruta para eliminar tabla productos (opcional, solo para pruebas)
 app.delete("/api/delete-tabla-productos", async (req, res) => {
@@ -70,10 +74,11 @@ sequelize
   .sync({ alter: true }) // usa alter: true para migraciones automáticas, o force: true para borrar todo
   .then(() => {
     console.log("✔️ Base de datos sincronizada");
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🌐 Servidor corriendo en http://192.168.100.11:${PORT}`);
+    app.listen(PORT, "127.0.0.1", () => {
+      console.log(`🌐 Servidor corriendo localmente en http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
     console.error("❌ Error al sincronizar la base de datos:", err);
   });
+

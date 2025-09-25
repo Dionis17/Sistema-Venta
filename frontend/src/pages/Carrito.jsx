@@ -33,28 +33,29 @@ function InputConComas({ valor, setValor }) {
 }
 
 function Carrito() {
-  const API_IP = "http://192.168.1.100:5000"; // Cambiar a tu IP real si es necesario
+  const API_IP = "http://localhost:5000";
 
   const [cliente, setCliente] = useState(null);
-  const [cuentaAbiertaSeleccionada, setCuentaAbiertaSeleccionada] =
-    useState(null);
+  const [cuentaAbiertaSeleccionada, setCuentaAbiertaSeleccionada] = useState(null);
+  const [cuentaId, setCuentaId] = useState(null);
   const [tipoPago, setTipoPago] = useState("Efectivo");
   const [montoEfectivo, setMontoEfectivo] = useState("");
   const [carrito, setCarrito] = useState([]);
   const [mostrarListadoProductos, setMostrarListadoProductos] = useState(false);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [mensaje, setMensaje] = useState(null);
-  const [cuentaId, setCuentaId] = useState(null);
 
-  const totalCarrito = carrito.reduce((total, item) => {
-    const precio = parseFloat(item.precio) || 0;
-    const cantidad = parseInt(item.cantidad) || 1;
-    return total + precio * cantidad;
-  }, 0);
+  const totalCarrito = cuentaAbiertaSeleccionada
+    ? Number(cuentaAbiertaSeleccionada.monto_restante || 0)
+    : carrito.reduce((total, item) => {
+      const precio = parseFloat(item.precio) || 0;
+      const cantidad = parseInt(item.cantidad) || 1;
+      return total + precio * cantidad;
+    }, 0);
+
 
   const agregarProductoACuenta = async (producto) => {
     if (!cuentaAbiertaSeleccionada) return;
-
     try {
       await fetch(`${API_IP}/api/cuentas/agregar-producto`, {
         method: "POST",
@@ -68,17 +69,12 @@ function Carrito() {
       });
     } catch (error) {
       console.error("Error al agregar producto a la cuenta:", error);
-      setMensaje({
-        tipo: "error",
-        texto: "No se pudo agregar el producto a la cuenta",
-      });
+      setMensaje({ tipo: "error", texto: "No se pudo agregar el producto a la cuenta" });
     }
   };
 
   const agregarProducto = (productos) => {
-    const productosAgregados = Array.isArray(productos)
-      ? productos
-      : [productos];
+    const productosAgregados = Array.isArray(productos) ? productos : [productos];
     const carritoActualizado = [...carrito];
 
     productosAgregados.forEach((prod) => {
@@ -91,40 +87,31 @@ function Carrito() {
         imagen: prod.imagen || prod.imagen_url || null,
       };
 
-      const existente = carritoActualizado.find(
-        (p) => p.id === productoNormalizado.id
-      );
+      const existente = carritoActualizado.find((p) => p.id === productoNormalizado.id);
       if (existente) {
         existente.cantidad += productoNormalizado.cantidad;
       } else {
         carritoActualizado.push(productoNormalizado);
       }
 
-      if (cuentaAbiertaSeleccionada) {
-        agregarProductoACuenta(productoNormalizado);
-      }
+      if (cuentaAbiertaSeleccionada) agregarProductoACuenta(productoNormalizado);
     });
 
     setCarrito(carritoActualizado);
   };
 
-  const eliminarFila = (index) => {
-    setCarrito((prev) => prev.filter((_, i) => i !== index));
-  };
+  const eliminarFila = (index) => setCarrito(prev => prev.filter((_, i) => i !== index));
 
   const actualizarCantidad = (index, nuevaCantidad) => {
     if (nuevaCantidad < 1) nuevaCantidad = 1;
-    setCarrito((prev) =>
-      prev.map((prod, i) =>
-        i === index ? { ...prod, cantidad: nuevaCantidad } : prod
-      )
-    );
+    setCarrito(prev => prev.map((prod, i) => i === index ? { ...prod, cantidad: nuevaCantidad } : prod));
   };
 
   const limpiarCarrito = () => {
     setCarrito([]);
     setCliente(null);
     setCuentaAbiertaSeleccionada(null);
+    setCuentaId(null);
     setMontoEfectivo("");
     setTipoPago("Efectivo");
     setMensaje(null);
@@ -144,29 +131,19 @@ function Carrito() {
     }
 
     if (!cliente && tipoPago !== "Efectivo") {
-      setMensaje({
-        tipo: "error",
-        texto:
-          "Debe seleccionar un cliente para pagos que no sean en efectivo.",
-      });
+      setMensaje({ tipo: "error", texto: "Debe seleccionar un cliente para pagos que no sean en efectivo." });
       return;
     }
 
     if (tipoPago === "Efectivo") {
       const efectivo = parseFloat(montoEfectivo);
       if (isNaN(efectivo) || efectivo <= 0) {
-        setMensaje({
-          tipo: "error",
-          texto: "Ingrese un monto en efectivo válido.",
-        });
+        setMensaje({ tipo: "error", texto: "Ingrese un monto en efectivo válido." });
         return;
       }
 
       if (!cuentaAbiertaSeleccionada && efectivo < totalCarrito) {
-        setMensaje({
-          tipo: "error",
-          texto: "El monto en efectivo es insuficiente.",
-        });
+        setMensaje({ tipo: "error", texto: "El monto en efectivo es insuficiente." });
         return;
       }
     }
@@ -175,14 +152,17 @@ function Carrito() {
       const body = {
         clienteId: cliente?.id || null,
         tipoPago,
-        montoEfectivo:
-          tipoPago === "Efectivo" ? parseFloat(montoEfectivo) : null,
-        productos: carrito.map(({ id, cantidad }) => ({ id, cantidad })),
+        montoEfectivo: tipoPago === "Efectivo" ? parseFloat(montoEfectivo) : null,
+        productos: carrito.map(({ id, cantidad, precio }) => ({
+          id,
+          cantidad,
+          precio, // ⚠️ precio enviado correctamente
+        })),
         cuentaAbiertaId: cuentaAbiertaSeleccionada?.id || null,
-        montoPagado: cuentaAbiertaSeleccionada
-          ? parseFloat(montoEfectivo)
-          : null,
+        montoPagado: cuentaAbiertaSeleccionada ? parseFloat(montoEfectivo || 0) : null,
       };
+
+
 
       const response = await fetch(`${API_IP}/api/ventas`, {
         method: "POST",
@@ -196,10 +176,7 @@ function Carrito() {
       }
 
       const data = await response.json();
-      setMensaje({
-        tipo: "exito",
-        texto: data.message || "Venta realizada correctamente.",
-      });
+      setMensaje({ tipo: "exito", texto: data.message || "Venta realizada correctamente." });
       limpiarCarrito();
     } catch (error) {
       console.error("Error en fetch venta:", error);
@@ -207,13 +184,15 @@ function Carrito() {
     }
   };
 
-  const cambio =
-    tipoPago === "Efectivo" && montoEfectivo
-      ? Math.max(parseFloat(montoEfectivo) - totalCarrito, 0)
-      : 0;
+  const cambio = tipoPago === "Efectivo" && montoEfectivo ? Math.max(parseFloat(montoEfectivo) - totalCarrito, 0) : 0;
 
   const manejarSeleccionCuentaAbierta = async (credito) => {
-    setCuentaAbiertaSeleccionada(credito);
+    setCuentaAbiertaSeleccionada({
+      ...credito,
+      monto_total: Number(credito.monto_total || 0),
+      monto_pagado: Number(credito.monto_pagado || 0),
+      monto_restante: Number(credito.monto_restante || 0),
+    });
     setCuentaId(credito.id);
 
     setCliente({
@@ -224,61 +203,26 @@ function Carrito() {
     setMostrarModal(false);
 
     try {
-      const response = await fetch(
-        `${API_IP}/api/cuentas/productos/${credito.id}`
-      );
-      if (!response.ok)
-        throw new Error("Error al obtener productos de la cuenta");
-      const productos = await response.json();
-      const productosUnicos = combinarProductosDuplicados(productos);
-      setCarrito(productosUnicos);
+      const response = await fetch(`${API_IP}/api/cuentas/productos/${credito.id}`);
+      if (!response.ok) throw new Error("Error al obtener productos de la cuenta");
+      const data = await response.json();
+      const productos = data?.productos || [];
+      setCarrito(combinarProductosDuplicados(productos));
     } catch (error) {
       console.error(error);
-      setMensaje({
-        tipo: "error",
-        texto: "No se pudieron cargar los productos de la cuenta",
-      });
-    }
-  };
-
-  const cobrarCuenta = async (cuentaId) => {
-    try {
-      const response = await fetch(
-        `${API_IP}/api/cuentas/cobrar/${cuentaId}`,
-        { method: "POST" }
-      );
-
-      if (!response.ok) throw new Error("Error cobrando la cuenta");
-
-      const data = await response.json();
-      console.log("Cuenta cobrada:", data.message);
-
-      limpiarCarrito();
-    } catch (error) {
-      console.error("Error cobrando la cuenta:", error);
-      setMensaje({ tipo: "error", texto: error.message });
+      setMensaje({ tipo: "error", texto: "No se pudieron cargar los productos de la cuenta" });
     }
   };
 
   const combinarProductosDuplicados = (productos) => {
+    if (!productos || !Array.isArray(productos)) return [];
     const mapa = {};
-    productos.forEach((p) => {
+    productos.forEach(p => {
       const id = p.id;
       const precio = parseFloat(p.precio_venta || p.precio || 0);
       const cantidad = parseInt(p.cantidad) || 1;
-
-      if (mapa[id]) {
-        mapa[id].cantidad += cantidad;
-      } else {
-        mapa[id] = {
-          id: p.id,
-          nombre: p.nombre,
-          variante: p.variante || "",
-          cantidad: cantidad,
-          precio: precio,
-          imagen: p.imagen || p.imagen_url || null,
-        };
-      }
+      if (mapa[id]) mapa[id].cantidad += cantidad;
+      else mapa[id] = { id: p.id, nombre: p.nombre, variante: p.variante || "", cantidad, precio, imagen: p.imagen || p.imagen_url || null };
     });
     return Object.values(mapa);
   };
@@ -288,11 +232,10 @@ function Carrito() {
       <div className="flex flex-col md:flex-row gap-6 flex-grow overflow-hidden">
         {/* Panel izquierdo */}
         <section className="flex flex-col flex-shrink-0 w-full md:w-1/3 gap-6 overflow-auto">
+          {/* Tipo de pago */}
           {tipoPago === "Efectivo" && (
             <div>
-              <label className="mb-0 font-semibold text-base">
-                Monto efectivo
-              </label>
+              <label className="mb-0 font-semibold text-base">Monto efectivo</label>
               <InputConComas
                 valor={montoEfectivo}
                 setValor={setMontoEfectivo}
@@ -310,6 +253,7 @@ function Carrito() {
             </div>
           )}
 
+          {/* Tipo de pago selector */}
           <div>
             <label className="mb-1 font-semibold text-base">Tipo de pago</label>
             <select
@@ -328,6 +272,7 @@ function Carrito() {
             </select>
           </div>
 
+          {/* Cliente */}
           <div>
             <label className="mb-1 font-semibold text-base">Cliente</label>
             <div className="border p-3 rounded bg-white min-h-[48px] text-base">
@@ -335,9 +280,7 @@ function Carrito() {
                 <p>
                   <strong>{cliente.nombre}</strong>{" "}
                   {cuentaAbiertaSeleccionada && (
-                    <span className="text-green-700 font-semibold ml-2">
-                      (Cuenta abierta)
-                    </span>
+                    <span className="text-green-700 font-semibold ml-2">(Cuenta abierta)</span>
                   )}
                 </p>
               ) : (
@@ -346,6 +289,26 @@ function Carrito() {
             </div>
           </div>
 
+          {/* RESUMEN DE LA CUENTA */}
+          {cuentaAbiertaSeleccionada && (
+            <div className="border rounded p-3 bg-yellow-50 mb-4 text-gray-800">
+              <p>
+                <span className="font-semibold">Monto inicial:</span> $
+                {(Number(cuentaAbiertaSeleccionada.monto_total) || 0).toFixed(2)}
+              </p>
+              <p>
+                <span className="font-semibold">Monto pagado:</span> $
+                {(Number(cuentaAbiertaSeleccionada.monto_pagado) || 0).toFixed(2)}
+              </p>
+              <p>
+                <span className="font-semibold">Monto restante:</span> $
+                {(Number(cuentaAbiertaSeleccionada.monto_restante) || 0).toFixed(2)}
+              </p>
+
+            </div>
+          )}
+
+          {/* Botones */}
           <div className="flex flex-row gap-3 mt-auto">
             <button
               onClick={() => setMostrarListadoProductos(true)}
@@ -389,10 +352,7 @@ function Carrito() {
               <tbody>
                 {carrito.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan="6"
-                      className="text-center p-4 md:p-8 text-gray-500"
-                    >
+                    <td colSpan="6" className="text-center p-4 md:p-8 text-gray-500">
                       No hay productos en el carrito
                     </td>
                   </tr>
@@ -401,10 +361,7 @@ function Carrito() {
                     const precio = parseFloat(item.precio) || 0;
                     const cantidad = parseInt(item.cantidad) || 1;
                     return (
-                      <tr
-                        key={`${item.id}-${idx}`}
-                        className="hover:bg-gray-50 flex-wrap md:table-row"
-                      >
+                      <tr key={`${item.id}-${idx}`} className="hover:bg-gray-50 flex-wrap md:table-row">
                         <td className="border p-1 md:p-2 w-16">
                           {item.imagen ? (
                             <img
@@ -426,19 +383,14 @@ function Carrito() {
                             value={cantidad}
                             onChange={(e) => {
                               let nuevaCantidad = parseInt(e.target.value);
-                              if (isNaN(nuevaCantidad) || nuevaCantidad < 1)
-                                nuevaCantidad = 1;
+                              if (isNaN(nuevaCantidad) || nuevaCantidad < 1) nuevaCantidad = 1;
                               actualizarCantidad(idx, nuevaCantidad);
                             }}
                             className="w-full max-w-[50px] md:max-w-[60px] border rounded p-1 md:p-2 text-xs md:text-sm"
                           />
                         </td>
-                        <td className="border p-1 md:p-2 text-xs md:text-sm">
-                          ${precio.toFixed(2)}
-                        </td>
-                        <td className="border p-1 md:p-2 text-xs md:text-sm">
-                          ${(precio * cantidad).toFixed(2)}
-                        </td>
+                        <td className="border p-1 md:p-2 text-xs md:text-sm">${precio.toFixed(2)}</td>
+                        <td className="border p-1 md:p-2 text-xs md:text-sm">${(precio * cantidad).toFixed(2)}</td>
                         <td className="border p-1 md:p-2 text-xs md:text-sm">
                           <button
                             onClick={() => eliminarFila(idx)}
@@ -460,7 +412,7 @@ function Carrito() {
                     <td colSpan="6" className="border-t p-1 md:p-3 text-right">
                       <div className="inline-block px-2 md:px-4 py-1 md:py-2 bg-gray-100 rounded shadow-md">
                         <span className="font-bold text-black text-sm md:text-xl mr-1 md:mr-2">
-                          Total:
+                          Total a pagar:
                         </span>
                         <span className="font-bold text-blue-700 text-sm md:text-xl">
                           ${totalCarrito.toFixed(2)}
@@ -471,9 +423,7 @@ function Carrito() {
                           <span className="font-bold text-black text-sm md:text-xl mr-1 md:mr-2">
                             Cambio:
                           </span>
-                          <span className="font-bold text-green-600 text-sm md:text-xl">
-                            ${cambio.toFixed(2)}
-                          </span>
+                          <span className="font-bold text-green-600 text-sm md:text-xl">${cambio.toFixed(2)}</span>
                         </div>
                       )}
                     </td>
@@ -512,9 +462,8 @@ function Carrito() {
 
       {mensaje && (
         <div
-          className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white max-w-xs z-50 ${
-            mensaje.tipo === "exito" ? "bg-green-500" : "bg-red-500"
-          }`}
+          className={`fixed bottom-4 right-4 p-4 rounded shadow-lg text-white max-w-xs z-50 ${mensaje.tipo === "exito" ? "bg-green-500" : "bg-red-500"
+            }`}
           role="alert"
         >
           {mensaje.texto}

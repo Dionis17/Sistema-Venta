@@ -17,6 +17,7 @@ import MainLayout from "./component/MainLayout";
 import Proveedor from "./pages/Proveedor";
 import Cuadre from "./pages/Cuadres";
 import Agrupado from "./pages/productoAgrupado";
+import Historial from "./pages/Historial";
 
 // --- Contexto de Autenticación ---
 const AuthContext = createContext();
@@ -184,6 +185,18 @@ function AppRoutes() {
             </MainLayout>
           </PrivateRoute>
         }
+      />
+      <Route
+      path="/historial"
+      element={
+        <PrivateRoute>
+             <MainLayout onLogout={logout}>
+              <Historial />{" "}
+              {/* Este es tu formulario o componente de productos agrupados */}
+            </MainLayout>
+        </PrivateRoute>
+      }
+      
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />

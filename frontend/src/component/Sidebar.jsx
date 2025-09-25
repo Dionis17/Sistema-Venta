@@ -20,7 +20,7 @@ const menuItems = [
   { name: "Usuarios", icon: AiOutlineTeam, path: "/Usuarios" },
   { name: "Proveedores", icon: AiOutlineTruck, path: "/proveedor" },
   { name: "Cuadre de caja", icon: AiOutlineFileDone, path: "/cuadre" },
-  { name: "Cuadres guardados", icon: AiOutlineFolderOpen, path: "/cuadres-guardados" },
+  { name: "Cuadres guardados", icon: AiOutlineFolderOpen, path: "/historial" },
 ];
 
 function Sidebar({ children }) {

@@ -13,85 +13,101 @@ export default function CuadreCaja({ usuario }) {
   const [error, setError] = useState(null);
   const [facturaSeleccionada, setFacturaSeleccionada] = useState(null);
 
+  // Cargar facturas pendientes
   useEffect(() => {
-    const fetchVentas = async () => {
+    const fetchVentasPendientes = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await axios.get("http://localhost:5000/api/ventas");
+        const res = await axios.get("http://localhost:5000/api/ventas/pendientes");
         setFacturas(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error(err);
-        setError("Error al cargar ventas");
+        setError("Error al cargar ventas pendientes");
         setFacturas([]);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchVentas();
+    fetchVentasPendientes();
   }, []);
 
-  const calcularTotalFactura = (factura) => {
-    if (!factura.detalles) return 0;
-    return factura.detalles.reduce(
-      (total, det) => total + det.cantidad * det.precioUnitario,
-      0
-    );
-  };
-  const totalVentas = facturas
-    .filter((f) => f.estadoVenta !== "Anulada") // solo sumamos las que no están anuladas
-    .reduce((acc, factura) => acc + calcularTotalFactura(factura), 0);
-
+  // Manejo de inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (
-      (name === "fijo" || name === "efectivo") &&
-      value &&
-      !/^\d*\.?\d*$/.test(value)
-    ) {
-      return;
-    }
+    if ((name === "fijo" || name === "efectivo") && value && !/^\d*\.?\d*$/.test(value)) return;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  // Calcular monto pagado mostrado en la tabla
+  const calcularMontoMostrado = (factura) => {
+    const totalFactura = factura.detallesVenta?.reduce((total, det) => total + det.cantidad * det.precioUnitario, 0) || 0;
+    return factura.montoPagado != null ? factura.montoPagado : totalFactura;
+  };
+
+  const obtenerEstadoFactura = (factura) => {
+    const totalFactura = factura.detallesVenta?.reduce((total, det) => total + det.cantidad * det.precioUnitario, 0) || 0;
+    if (factura.estadoVenta === "Anulada") return "Anulada";
+    if (factura.montoPagado < totalFactura) return "Parcial";
+    return "Pago";
+  };
+
+  // Total de ventas para cuadre: solo lo pagado
+  const totalVentas = facturas
+    .filter((f) => f.estadoVenta !== "Anulada")
+    .reduce((acc, factura) => acc + (factura.montoPagado || 0), 0);
+
+  // Registrar cuadre
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.fijo || !form.efectivo) {
       setMensaje({ tipo: "error", texto: "Fijo y efectivo son obligatorios." });
       return;
     }
-    setMensaje({ tipo: "exito", texto: "Cuadre registrado correctamente." });
-  };
-
-  const verFactura = (factura) => {
-    setFacturaSeleccionada(factura);
-  };
-
-  const anularFactura = async (factura) => {
-    const confirmar = window.confirm(
-      `¿Desea anular la factura #${factura.id}?`
-    );
-    if (!confirmar) return;
 
     try {
-      const res = await axios.post(
-        `http://localhost:5000/api/ventas/anular/${factura.id}`
-      );
+      const nuevoCuadre = {
+        usuarioCuadre: usuario?.nombre || "Anónimo",
+        usuarioVenta: "Sistema",
+        efectivoSistema: totalVentas,
+        efectivoFisico: parseFloat(form.efectivo),
+        fijo: parseFloat(form.fijo),
+        observaciones: form.observaciones,
+      };
 
+      // Registrar cuadre y obtener ID
+      const res = await axios.post("http://localhost:5000/api/cuadres", nuevoCuadre);
+      const cuadreCreado = res.data;
+
+      // Cerrar cuadre
+      await axios.put(`http://localhost:5000/api/cuadres/${cuadreCreado.id}/cerrar`);
+
+      // Recargar ventas pendientes
+      const resVentas = await axios.get("http://localhost:5000/api/ventas/pendientes");
+      setFacturas(Array.isArray(resVentas.data) ? resVentas.data : []);
+
+      setMensaje({ tipo: "exito", texto: "Cuadre registrado correctamente." });
+      setForm({ fijo: "", efectivo: "", observaciones: "" });
+    } catch (error) {
+      console.error(error);
+      setMensaje({ tipo: "error", texto: "Error al registrar el cuadre." });
+    }
+  };
+
+  // Modal y anulación
+  const verFactura = (factura) => setFacturaSeleccionada(factura);
+
+  const anularFactura = async (factura) => {
+    if (!window.confirm(`¿Desea anular la factura #${factura.id}?`)) return;
+    try {
+      const res = await axios.post(`http://localhost:5000/api/ventas/anular/${factura.id}`);
       if (res.status === 200) {
-        setMensaje({
-          tipo: "exito",
-          texto: `Factura #${factura.id} anulada correctamente.`,
-        });
-
-        // Solo actualizamos estadoVenta a "Anulada"
+        setMensaje({ tipo: "exito", texto: `Factura #${factura.id} anulada correctamente.` });
         setFacturas((prev) =>
-          prev.map((f) =>
-            f.id === factura.id ? { ...f, estadoVenta: "Anulada" } : f
-          )
+          prev.map((f) => (f.id === factura.id ? { ...f, estadoVenta: "Anulada" } : f))
         );
       } else {
-        setMensaje({ tipo: "error", texto: `No se pudo anular la factura.` });
+        setMensaje({ tipo: "error", texto: "No se pudo anular la factura." });
       }
     } catch (error) {
       console.error(error);
@@ -104,9 +120,7 @@ export default function CuadreCaja({ usuario }) {
       <div className="bg-white shadow-lg rounded-lg w-full mx-auto flex flex-col p-6 flex-grow">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4 md:mb-0">
-            Cuadre de Caja
-          </h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4 md:mb-0">Cuadre de Caja</h2>
           <span className="text-2xl font-bold text-gray-900">
             <span className="text-gray-600 mr-2">Vendido:</span>
             <span className="text-green-600">${totalVentas.toFixed(2)}</span>
@@ -167,9 +181,7 @@ export default function CuadreCaja({ usuario }) {
         {/* Mensaje */}
         {mensaje && (
           <div
-            className={`mb-4 p-3 rounded text-white ${
-              mensaje.tipo === "exito" ? "bg-blue-600" : "bg-red-600"
-            }`}
+            className={`mb-4 p-3 rounded text-white ${mensaje.tipo === "exito" ? "bg-blue-600" : "bg-red-600"}`}
             role="alert"
           >
             {mensaje.texto}
@@ -177,9 +189,7 @@ export default function CuadreCaja({ usuario }) {
         )}
 
         {/* Tabla de facturas */}
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">
-          Facturas Realizadas
-        </h3>
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">Facturas Pendientes</h3>
         {isLoading ? (
           <div className="flex justify-center items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
@@ -193,52 +203,29 @@ export default function CuadreCaja({ usuario }) {
               <table className="table-auto w-full divide-y divide-gray-200">
                 <thead className="bg-blue-50 text-blue-800 sticky top-0 z-10">
                   <tr>
-                    <th className="p-3 text-left text-xs md:text-sm font-semibold">
-                      N° Factura
-                    </th>
-                    <th className="p-3 text-left text-xs md:text-sm font-semibold">
-                      Fecha
-                    </th>
-                    <th className="p-3 text-left text-xs md:text-sm font-semibold">
-                      Monto Total
-                    </th>
-                    <th className="p-3 text-left text-xs md:text-sm font-semibold">
-                      Estado
-                    </th>
-                    <th className="p-3 text-left text-xs md:text-sm font-semibold">
-                      Método de Pago
-                    </th>
-                    <th className="p-3 text-right text-xs md:text-sm font-semibold">
-                      Acciones
-                    </th>
+                    <th className="p-3 text-left text-xs md:text-sm font-semibold">N° Factura</th>
+                    <th className="p-3 text-left text-xs md:text-sm font-semibold">Fecha</th>
+                    <th className="p-3 text-left text-xs md:text-sm font-semibold">Monto Pagado</th>
+                    <th className="p-3 text-left text-xs md:text-sm font-semibold">Estado</th>
+                    <th className="p-3 text-left text-xs md:text-sm font-semibold">Método de Pago</th>
+                    <th className="p-3 text-right text-xs md:text-sm font-semibold">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {facturas.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan="6"
-                        className="p-4 text-center text-gray-500 italic"
-                      >
-                        No hay facturas registradas.
+                      <td colSpan="6" className="p-4 text-center text-gray-500 italic">
+                        No hay facturas pendientes.
                       </td>
                     </tr>
                   ) : (
                     facturas.map((factura) => (
                       <tr key={factura.id} className="hover:bg-blue-50">
                         <td className="p-2 border">{factura.id}</td>
-                        <td className="p-2 border">
-                          {new Date(factura.fecha).toLocaleDateString()}
-                        </td>
-                        <td className="p-2 border">
-                          ${calcularTotalFactura(factura).toFixed(2)}
-                        </td>
-                        <td className="p-2 border">
-                          {factura.estadoVenta || "Pago"}
-                        </td>
-                        <td className="p-2 border">
-                          {factura.tipoPago || "N/A"}
-                        </td>
+                        <td className="p-2 border">{new Date(factura.fecha).toLocaleDateString()}</td>
+                        <td className="p-2 border">${calcularMontoMostrado(factura).toFixed(2)}</td>
+                        <td className="p-2 border">{obtenerEstadoFactura(factura)}</td>
+                        <td className="p-2 border">{factura.tipoPago || "N/A"}</td>
                         <td className="p-2 border text-right space-x-2">
                           <button
                             onClick={() => verFactura(factura)}
@@ -248,11 +235,7 @@ export default function CuadreCaja({ usuario }) {
                           </button>
                           <button
                             onClick={() => anularFactura(factura)}
-                            className={`text-red-600 hover:underline ${
-                              factura.estadoVenta === "Anulada"
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                            }`}
+                            className={`text-red-600 hover:underline ${factura.estadoVenta === "Anulada" ? "opacity-50 cursor-not-allowed" : ""}`}
                             disabled={factura.estadoVenta === "Anulada"}
                           >
                             Anular
@@ -267,20 +250,14 @@ export default function CuadreCaja({ usuario }) {
           </div>
         )}
 
-        {/* Modal de detalles de factura */}
+        {/* Modal de factura */}
         {facturaSeleccionada && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
             <div className="bg-white rounded-lg shadow-lg p-6 w-11/12 md:w-2/3 max-h-[80vh] overflow-y-auto">
-              <h3 className="text-xl font-bold mb-4">
-                Factura #{facturaSeleccionada.id}
-              </h3>
-              <p className="mb-2">
-                Fecha:{" "}
-                {new Date(facturaSeleccionada.fecha).toLocaleDateString()}
-              </p>
-              <p className="mb-4">
-                Cliente: {facturaSeleccionada.cliente?.nombre || "N/A"}
-              </p>
+              <h3 className="text-xl font-bold mb-4">Factura #{facturaSeleccionada.id}</h3>
+              <p className="mb-2">Fecha: {new Date(facturaSeleccionada.fecha).toLocaleDateString()}</p>
+              <p className="mb-2">Estado: {obtenerEstadoFactura(facturaSeleccionada)}</p>
+              <p className="mb-4">Cliente: {facturaSeleccionada.cliente?.nombre || "N/A"}</p>
 
               <table className="w-full border-collapse mb-4">
                 <thead>
@@ -292,27 +269,30 @@ export default function CuadreCaja({ usuario }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {facturaSeleccionada.detalles.map((item, idx) => (
+                  {facturaSeleccionada.detallesVenta.map((item, idx) => (
                     <tr key={idx}>
-                      <td className="border p-2">
-                        {item.nombre ||
-                          item.producto?.nombre ||
-                          "Producto desconocido"}
-                      </td>
+                      <td className="border p-2">{item.nombre || item.producto?.nombre || "Producto desconocido"}</td>
                       <td className="border p-2">{item.cantidad}</td>
-                      <td className="border p-2">
-                        ${item.precioUnitario.toFixed(2)}
-                      </td>
-                      <td className="border p-2">
-                        ${(item.cantidad * item.precioUnitario).toFixed(2)}
-                      </td>
+                      <td className="border p-2">${item.precioUnitario.toFixed(2)}</td>
+                      <td className="border p-2">${(item.cantidad * item.precioUnitario).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <div className="text-right font-bold text-lg">
-                Total: ${calcularTotalFactura(facturaSeleccionada).toFixed(2)}
+              <div className="text-right font-bold text-lg space-y-1">
+                <div className="text-blue-600">
+                  Total de la factura: $
+                  {facturaSeleccionada.detallesVenta.reduce((total, item) => total + item.cantidad * item.precioUnitario, 0).toFixed(2)}
+                </div>
+                <div className={facturaSeleccionada.montoPagado < facturaSeleccionada.detallesVenta.reduce((total, item) => total + item.cantidad * item.precioUnitario, 0) ? "text-yellow-600" : "text-green-600"}>
+                  Monto recibido: ${facturaSeleccionada.montoPagado.toFixed(2)}
+                </div>
+                <div className="text-red-600">
+                  Restante: ${(
+                    facturaSeleccionada.detallesVenta.reduce((total, item) => total + item.cantidad * item.precioUnitario, 0) - facturaSeleccionada.montoPagado
+                  ).toFixed(2)}
+                </div>
               </div>
 
               <div className="mt-4 text-right">
@@ -326,6 +306,7 @@ export default function CuadreCaja({ usuario }) {
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

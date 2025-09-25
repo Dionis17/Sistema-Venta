@@ -24,6 +24,11 @@ const Venta = sequelize.define("Venta", {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
+  estadoCuadre: {
+    type: DataTypes.ENUM("pendiente", "cuadrado"), // 👈 estados posibles
+    allowNull: false,
+    defaultValue: "pendiente", // 👈 por defecto estará pendiente
+  },
 });
 
 // 👇 Asociación con DetalleVenta
